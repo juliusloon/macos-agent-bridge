@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">macOS Agent Bridge — Native Mac tools for your AI workflow</title>
+  <desc id="desc">Tinycast, Raycast and MCP clients share one execution engine. Bridge manages capabilities, approvals and file scope; a Swift helper connects native macOS APIs.</desc>
+  <rect width="1200" height="480" rx="24" fill="#F4F7F9"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">
+    <g id="identity" transform="translate(64 58)">
+      <text x="0" y="22" fill="#087F8C" font-size="22" font-weight="650" letter-spacing="2">LOCAL TOOLS · SHARED CONTROL</text>
+      <text x="-3" y="112" fill="#172B3A" font-size="74" font-weight="750" letter-spacing="-2">macOS Agent Bridge</text>
+      <text x="0" y="174" fill="#526878" font-size="34">Native Mac tools, connected to your AI workflow.</text>
+    </g>
+    <g id="execution-path" transform="translate(64 294)">
+      <path d="M310 51H390M682 51H762" fill="none" stroke="#087F8C" stroke-width="4"/>
+      <path d="m376 42 14 9-14 9m372-18 14 9-14 9" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="0" y="0" width="310" height="102" rx="18" fill="#FFFFFF" stroke="#D6E0E5" stroke-width="2"/>
+      <text x="155" y="45" text-anchor="middle" fill="#172B3A" font-size="30" font-weight="650">AI / Launcher</text>
+      <text x="155" y="77" text-anchor="middle" fill="#526878" font-size="22">Tinycast · Raycast · MCP</text>
+      <rect x="390" y="0" width="292" height="102" rx="18" fill="#087F8C"/>
+      <text x="536" y="45" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="650">Bridge</text>
+      <text x="536" y="77" text-anchor="middle" fill="#FFFFFF" font-size="22">Policy · Approval · Scope</text>
+      <rect x="762" y="0" width="310" height="102" rx="18" fill="#FFFFFF" stroke="#D6E0E5" stroke-width="2"/>
+      <text x="917" y="45" text-anchor="middle" fill="#172B3A" font-size="30" font-weight="650">macOS</text>
+      <text x="917" y="77" text-anchor="middle" fill="#526878" font-size="22">EventKit · AppKit · JXA</text>
+    </g>
+    <text x="64" y="444" fill="#526878" font-size="22">63 tool definitions / 5 extension commands / local stdio MCP</text>
+  </g>
+</svg>

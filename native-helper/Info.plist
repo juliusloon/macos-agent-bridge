@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.cano.macos-agent-bridge.helper</string>
+<key>CFBundleName</key><string>MacOS Agent Bridge Helper</string>
+<key>CFBundleExecutable</key><string>BridgeHelper</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>LSUIElement</key><true/>
+<key>NSCalendarsFullAccessUsageDescription</key><string>Read and manage calendar events requested through your local Agent Bridge.</string>
+<key>NSRemindersFullAccessUsageDescription</key><string>Read and manage reminders requested through your local Agent Bridge.</string>
+<key>NSContactsUsageDescription</key><string>Search and update contacts requested through your local Agent Bridge.</string>
+<key>NSAppleEventsUsageDescription</key><string>Use public scripting interfaces to automate Notes, Mail, Safari and Music at your request.</string>
+</dict></plist>

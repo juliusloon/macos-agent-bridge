@@ -1,0 +1,710 @@
+{
+  "definitions": 63,
+  "note": "脱敏的开发验证摘要；implemented仅表示在说明边界内有验证，不代表全部宿主与原生读写均已验收。原始本机证据不公开。",
+  "records": [
+    {
+      "name": "bridge_diagnostics",
+      "adapter": "bridge",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "bridge_list_capabilities",
+      "adapter": "bridge",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立Agent/协议实机通过",
+      "limit": "MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "bridge_get_operation",
+      "adapter": "bridge",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "web_fetch",
+      "adapter": "network",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "web_search",
+      "adapter": "network",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "network_check",
+      "adapter": "network",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_list_calendars",
+      "adapter": "calendar",
+      "status": "implemented",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_list_events",
+      "adapter": "calendar",
+      "status": "implemented",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_find_free_slots",
+      "adapter": "calendar",
+      "status": "implemented",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_create_event",
+      "adapter": "calendar",
+      "status": "blocked",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_update_event",
+      "adapter": "calendar",
+      "status": "blocked",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "calendar_delete_event",
+      "adapter": "calendar",
+      "status": "blocked",
+      "permissions": [
+        "calendar"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_list_lists",
+      "adapter": "reminders",
+      "status": "implemented",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_list_tasks",
+      "adapter": "reminders",
+      "status": "implemented",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_create_task",
+      "adapter": "reminders",
+      "status": "blocked",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_update_task",
+      "adapter": "reminders",
+      "status": "blocked",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_complete_task",
+      "adapter": "reminders",
+      "status": "blocked",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "reminders_delete_task",
+      "adapter": "reminders",
+      "status": "blocked",
+      "permissions": [
+        "reminders"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "contacts_search",
+      "adapter": "contacts",
+      "status": "blocked",
+      "permissions": [
+        "contacts"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基础名字/电话/邮箱；limited access仅返回可见联系人；修改替换电话/邮箱集合。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "contacts_get",
+      "adapter": "contacts",
+      "status": "blocked",
+      "permissions": [
+        "contacts"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基础名字/电话/邮箱；limited access仅返回可见联系人；修改替换电话/邮箱集合。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "contacts_create",
+      "adapter": "contacts",
+      "status": "blocked",
+      "permissions": [
+        "contacts"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基础名字/电话/邮箱；limited access仅返回可见联系人；修改替换电话/邮箱集合。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "contacts_update",
+      "adapter": "contacts",
+      "status": "blocked",
+      "permissions": [
+        "contacts"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "基础名字/电话/邮箱；limited access仅返回可见联系人；修改替换电话/邮箱集合。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_list_files",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_search_files",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_read_file",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_write_file",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "write",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_create_directory",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "write",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_copy_file",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "write",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_move_file",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "write",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_rename_file",
+      "adapter": "finder",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "write",
+      "test": "真实临时文件系统集成测试通过",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_trash_file",
+      "adapter": "finder",
+      "status": "partial",
+      "permissions": [],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "finder_open_file",
+      "adapter": "finder",
+      "status": "partial",
+      "permissions": [],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "仅用户授权根目录；复制/移动/重命名仅普通文件、不覆盖；搜索最多10000项；文本读取≤1MiB。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "clipboard_read",
+      "adapter": "system",
+      "status": "partial",
+      "permissions": [],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "clipboard_write",
+      "adapter": "system",
+      "status": "partial",
+      "permissions": [],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_get_frontmost_app",
+      "adapter": "system",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_list_apps",
+      "adapter": "system",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_open_app",
+      "adapter": "system",
+      "status": "partial",
+      "permissions": [],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_activate_app",
+      "adapter": "system",
+      "status": "partial",
+      "permissions": [],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_open_url",
+      "adapter": "system",
+      "status": "partial",
+      "permissions": [],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_status",
+      "adapter": "system",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_run_command",
+      "adapter": "utility",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "固定uptime/df/pmset；不接受动态shell字符串或任意代码。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_get_selected_text",
+      "adapter": "accessibility",
+      "status": "blocked",
+      "permissions": [
+        "accessibility"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "依赖目标应用AX支持；只支持读取选区/活动窗口和窗口位置尺寸；不提供通用GUI代理。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_list_windows",
+      "adapter": "system",
+      "status": "implemented",
+      "permissions": [
+        "screenRecording"
+      ],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_get_active_window",
+      "adapter": "accessibility",
+      "status": "blocked",
+      "permissions": [
+        "accessibility"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "依赖目标应用AX支持；只支持读取选区/活动窗口和窗口位置尺寸；不提供通用GUI代理。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_set_window_frame",
+      "adapter": "accessibility",
+      "status": "blocked",
+      "permissions": [
+        "accessibility"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "依赖目标应用AX支持；只支持读取选区/活动窗口和窗口位置尺寸；不提供通用GUI代理。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "system_capture_screen",
+      "adapter": "system",
+      "status": "blocked",
+      "permissions": [
+        "screenRecording"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "shortcuts_list",
+      "adapter": "shortcuts",
+      "status": "implemented",
+      "permissions": [],
+      "risk": "read",
+      "test": "独立MCP实机通过",
+      "limit": "仅已安装名称；执行始终人工确认；工作流副作用由快捷指令本身决定。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "shortcuts_run",
+      "adapter": "shortcuts",
+      "status": "partial",
+      "permissions": [
+        "shortcuts"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "仅已安装名称；执行始终人工确认；工作流副作用由快捷指令本身决定。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "notes_search",
+      "adapter": "notes",
+      "status": "partial",
+      "permissions": [
+        "automation:Notes"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Notes公开JXA；正文为HTML；搜索标题；锁定/共享/账户异常尚需实机验证。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "notes_get",
+      "adapter": "notes",
+      "status": "partial",
+      "permissions": [
+        "automation:Notes"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Notes公开JXA；正文为HTML；搜索标题；锁定/共享/账户异常尚需实机验证。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "notes_create",
+      "adapter": "notes",
+      "status": "partial",
+      "permissions": [
+        "automation:Notes"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Notes公开JXA；正文为HTML；搜索标题；锁定/共享/账户异常尚需实机验证。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "notes_append",
+      "adapter": "notes",
+      "status": "partial",
+      "permissions": [
+        "automation:Notes"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Notes公开JXA；正文为HTML；搜索标题；锁定/共享/账户异常尚需实机验证。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "mail_search",
+      "adapter": "mail",
+      "status": "partial",
+      "permissions": [
+        "automation:Mail"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "收件箱范围；最多扫描500条；发送仅报告提交Mail，不承诺投递成功；不自动发送可变草稿。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "mail_read",
+      "adapter": "mail",
+      "status": "partial",
+      "permissions": [
+        "automation:Mail"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "收件箱范围；最多扫描500条；发送仅报告提交Mail，不承诺投递成功；不自动发送可变草稿。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "mail_create_draft",
+      "adapter": "mail",
+      "status": "partial",
+      "permissions": [
+        "automation:Mail"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "收件箱范围；最多扫描500条；发送仅报告提交Mail，不承诺投递成功；不自动发送可变草稿。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "mail_send",
+      "adapter": "mail",
+      "status": "partial",
+      "permissions": [
+        "automation:Mail"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "收件箱范围；最多扫描500条；发送仅报告提交Mail，不承诺投递成功；不自动发送可变草稿。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "safari_list_tabs",
+      "adapter": "safari",
+      "status": "partial",
+      "permissions": [
+        "automation:Safari"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Safari窗口/标签元数据；无任意JS执行、无跨浏览器控制。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "safari_open_tab",
+      "adapter": "safari",
+      "status": "partial",
+      "permissions": [
+        "automation:Safari"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Safari窗口/标签元数据；无任意JS执行、无跨浏览器控制。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "safari_close_tab",
+      "adapter": "safari",
+      "status": "partial",
+      "permissions": [
+        "automation:Safari"
+      ],
+      "risk": "high",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "Safari窗口/标签元数据；无任意JS执行、无跨浏览器控制。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "music_status",
+      "adapter": "music",
+      "status": "partial",
+      "permissions": [
+        "automation:Music"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "本机Music资料库和播放控制；不搜索Apple Music流媒体目录。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "music_search",
+      "adapter": "music",
+      "status": "partial",
+      "permissions": [
+        "automation:Music"
+      ],
+      "risk": "read",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "本机Music资料库和播放控制；不搜索Apple Music流媒体目录。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "music_play_track",
+      "adapter": "music",
+      "status": "partial",
+      "permissions": [
+        "automation:Music"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "本机Music资料库和播放控制；不搜索Apple Music流媒体目录。",
+      "version": "1.0.0"
+    },
+    {
+      "name": "music_control",
+      "adapter": "music",
+      "status": "partial",
+      "permissions": [
+        "automation:Music"
+      ],
+      "risk": "write",
+      "test": "源码/编译验证；未完成本机成功调用",
+      "limit": "本机Music资料库和播放控制；不搜索Apple Music流媒体目录。",
+      "version": "1.0.0"
+    }
+  ]
+}

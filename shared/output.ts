@@ -1,0 +1,73 @@
+import type { Schema } from './registry.js';
+import { reviewUrls } from './approval.js';
+import { networkDataContract } from './network.js';
+const s = { type: 'string' }; const n = { type: 'number' }; const b = { type: 'boolean' };
+const nullable = (schema: Schema): Schema => ({ anyOf: [schema, { type: 'null' }] });
+const obj = (properties: Record<string, Schema>, required: string[] = Object.keys(properties)): Schema => ({ type: 'object', properties, required });
+const array = (items: Schema): Schema => ({ type: 'array', items });
+const event = obj({ id: s, calendarId: s, title: s, start: s, end: s, timezone: nullable(s), allDay: b, recurring: b });
+const reminder = obj({ id: s, listId: s, title: s, completed: b, priority: n, due: nullable(s) });
+const contact = obj({ id: s, givenName: s, familyName: s, emails: array(s), phones: array(s) });
+const app = obj({ pid: n, name: nullable(s), bundleId: nullable(s) });
+const frame = obj({ x: n, y: n, width: n, height: n });
+const note = obj({ id: s, title: s, html: s });
+const track = obj({ id: n, title: s, artist: s, album: s, duration: n });
+function dataContract(name: string): Schema {
+  const network = networkDataContract(name);
+  if (network) return network;
+  if (name === 'bridge_get_operation') return obj({ tool: s, idempotencyKey: s, state: { enum: ['not_found', 'pending', 'approved', 'denied', 'running', 'indeterminate', 'done', 'expired'] }, approvalId: s, expiresAt: s, result: { type: 'object' } }, ['tool', 'idempotencyKey', 'state']);
+  if (name === 'bridge_diagnostics') return obj({ version: s, protocol: { const: 'stdio' }, config: obj({ roots: array(s), disabledTools: array(s), trustedWriteTools: array(s), approvalMode: { enum: ['manual', 'auto-write'] } }), helper: { type: 'object' } });
+  if (name === 'bridge_list_capabilities') return obj({ capabilities: array(obj({ name: s, description: s, inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, riskLevel: s, requiredPermissions: array(s), adapter: s, availability: s, enabled: b, version: s }, ['name', 'description', 'riskLevel', 'requiredPermissions', 'adapter', 'availability', 'enabled', 'version'])) });
+  if (name === 'calendar_list_calendars' || name === 'reminders_list_lists') return obj({ calendars: array(obj({ id: s, title: s, writable: b, source: s })) });
+  if (name === 'calendar_list_events') return obj({ events: array(event), truncated: b, timezone: s });
+  if (name === 'calendar_find_free_slots') return obj({ slots: array(obj({ start: s, end: s })), timezone: s });
+  if (name === 'calendar_delete_event') return obj({ deleted: event });
+  if (name.startsWith('calendar_')) return event;
+  if (name === 'reminders_list_tasks') return obj({ tasks: array(reminder), truncated: b });
+  if (name === 'reminders_delete_task') return obj({ deleted: reminder });
+  if (name.startsWith('reminders_')) return reminder;
+  if (name === 'contacts_search') return obj({ contacts: array(contact), limitedAccess: b });
+  if (name.startsWith('contacts_')) return contact;
+  switch (name) {
+    case 'finder_list_files': return obj({ path: s, entries: array(obj({ name: s, directory: b, symlink: b })), truncated: b });
+    case 'finder_search_files': return obj({ matches: array(s), visited: n, truncated: b });
+    case 'finder_read_file': return obj({ path: s, content: s, bytes: n });
+    case 'finder_write_file': return obj({ path: s, bytes: n });
+    case 'finder_create_directory': return obj({ path: s });
+    case 'finder_copy_file': case 'finder_move_file': case 'finder_rename_file': return obj({ source: s, destination: s });
+    case 'finder_trash_file': return obj({ originalPath: s, trashPath: nullable(s) });
+    case 'finder_open_file': return obj({ path: s, opened: b });
+    case 'clipboard_read': return obj({ text: nullable(s), changeCount: n });
+    case 'clipboard_write': return obj({ changeCount: n });
+    case 'system_get_frontmost_app': case 'system_open_app': return app;
+    case 'system_list_apps': return obj({ apps: array(app) });
+    case 'system_activate_app': return obj({ activated: b, app });
+    case 'system_open_url': return obj({ opened: b, url: s });
+    case 'system_status': return obj({ os: s, uptimeSeconds: n, processorCount: n, physicalMemoryBytes: n, timezone: s });
+    case 'system_run_command': return obj({ command: s, stdout: s });
+    case 'system_get_selected_text': return obj({ text: s });
+    case 'system_get_active_window': return obj({ title: s, frame });
+    case 'system_set_window_frame': return frame;
+    case 'system_list_windows': return obj({ screenRecordingGranted: b, windows: array(obj({ id: n, owner: s, title: nullable(s), pid: n, bounds: { type: 'object' } })) });
+    case 'system_capture_screen': return obj({ path: s, width: n, height: n, bytes: n });
+    case 'shortcuts_list': return obj({ shortcuts: array(s) });
+    case 'shortcuts_run': return obj({ name: s, output: s });
+    case 'notes_search': return obj({ notes: array(obj({ id: s, title: s })), truncated: b });
+    case 'notes_get': case 'notes_create': case 'notes_append': return note;
+    case 'mail_search': return obj({ messages: array(obj({ id: n, subject: s, sender: s, received: s, read: b })), scanned: n, truncated: b });
+    case 'mail_read': return obj({ id: n, subject: s, sender: s, received: s, read: b, body: s });
+    case 'mail_create_draft': return obj({ id: n, to: s, subject: s, sent: b });
+    case 'mail_send': return obj({ id: n, submitted: b, to: s, subject: s, deliveryVerified: b });
+    case 'safari_list_tabs': return obj({ windows: array(obj({ id: n, tabs: array(obj({ index: n, title: s, url: s })) })) });
+    case 'safari_open_tab': return obj({ url: s, windowId: n });
+    case 'safari_close_tab': return obj({ closed: b, url: s });
+    case 'music_status': return obj({ state: s, track: nullable(track) });
+    case 'music_search': return obj({ tracks: array(track), truncated: b });
+    case 'music_play_track': return obj({ state: s, track });
+    case 'music_control': return obj({ state: s });
+    default: throw new Error(`Missing output contract for ${name}`);
+  }
+}
+export function outputContract(name: string, base: Schema): Schema {
+  return { ...base, allOf: [{ if: { properties: { status: { const: 'ok' } } }, then: { properties: { data: dataContract(name), error: { type: 'null' } } } }, { if: { properties: { status: { const: 'confirmation_required' } } }, then: { properties: { data: obj({ approvalId: s, expiresAt: s, action: s, reviewUrl: { enum: Object.values(reviewUrls) }, reviewUrls: obj({ tinycast: { const: reviewUrls.tinycast }, raycast: { const: reviewUrls.raycast } }) }), error: { type: 'null' } } } }] };
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "macos-agent-bridge": {
+      "command": "/Users/YOUR_USERNAME/Library/Application Support/MacOSAgentBridge/bridge",
+      "args": [
+        "--serve"
+      ]
+    }
+  }
+}
