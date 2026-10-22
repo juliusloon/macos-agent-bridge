@@ -23,6 +23,16 @@ test('MCP auto-write, status lookup, live capability updates and network policy 
     const tools = (await client.listTools()).tools;
     assert.equal(tools.length, 63);
     for (const name of ['web_fetch', 'web_search', 'network_check', 'bridge_get_operation']) assert.ok(tools.some(tool => tool.name === name));
+    // This isolated state has no native Helper socket. Reading today's date must still work.
+    const before = Date.now();
+    const clockResult = await client.callTool({ name: 'system_status', arguments: {} });
+    const clock = clockResult.structuredContent as unknown as ToolResult;
+    assert.equal(clock.status, 'ok');
+    const time = clock.data as { currentTime: string; localTime: string; localDate: string; timezone: string; unixTimeMs: number };
+    assert.ok(time.unixTimeMs >= before && time.unixTimeMs <= Date.now());
+    assert.equal(Date.parse(time.localTime), Date.parse(time.currentTime));
+    assert.equal(time.localDate, time.localTime.slice(0, 10)); assert.ok(time.timezone);
+    assert.match(client.getInstructions() || '', /Before resolving today.*call system_status/);
     const args = { path: join(root, 'one-operation'), _idempotencyKey: 'mcp-auto-operation' };
     const calls = await Promise.all([client.callTool({ name: 'finder_create_directory', arguments: args }), client.callTool({ name: 'finder_create_directory', arguments: args })]);
     assert.equal((calls[0].structuredContent as unknown as ToolResult).status, 'ok');

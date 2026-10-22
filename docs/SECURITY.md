@@ -37,3 +37,5 @@
 ## 公网访问
 
 `web_search`、`web_fetch`、`network_check` 的公网地址、DNS 固定、重定向和响应边界见 [0.2.0 更新说明](OPTIMIZATION-0.2.0.md)。请求不带浏览器 Cookie；Brave 密钥仅从进程环境读取，跨域重定向不转发凭据。新收据绑定来源；升级前没有 source 字段的旧收据继续兼容原幂等结果。
+
+2026-10-22 起，系统 DNS 失败或答案含非公网地址时，默认回退到 Cloudflare HTTPS DNS 的 IPv4 查询，仅发送目标域名。解析器固定 IP 引导，验证 TLS、禁止重定向；所有回退答案重新验证公网属性并固定到连接，私有地址字面量和本地域名不回退。不会修改全局 DNS；`BRIDGE_DNS_FALLBACK=off` 可关闭。失败细节和数据边界见[日期与联网故障排查](NETWORK-TROUBLESHOOTING.md)。

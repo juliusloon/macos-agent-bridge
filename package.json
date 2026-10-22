@@ -1,6 +1,6 @@
 {
   "name": "macos-agent-bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Native macOS tools for AI agents, with MCP, Tinycast and Raycast integration.",

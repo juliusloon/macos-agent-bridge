@@ -46,7 +46,7 @@ test('Tinycast MCP request → extension CLI review/execute → same-key result,
   const cli = async (...args: string[]) => JSON.parse((await exec(process.execPath, ['--import', 'tsx', resolve('mcp-server/src/cli.ts'), ...args], { env: { ...process.env, BRIDGE_STATE_DIR: stateDir } })).stdout) as unknown;
   try {
     await client.connect(transport);
-    assert.equal(client.getServerVersion()?.version, '0.2.0');
+    assert.equal(client.getServerVersion()?.version, '0.3.0');
     assert.equal(client.getInstructions(), agentGuidance.instructions);
     const tools = (await client.listTools()).tools;
     assert.equal(tools.length, 63);

@@ -39,7 +39,7 @@
       "permissions": [],
       "risk": "read",
       "test": "独立MCP实机通过",
-      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "limit": "公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。",
       "version": "1.0.0"
     },
     {
@@ -49,7 +49,7 @@
       "permissions": [],
       "risk": "read",
       "test": "独立MCP实机通过",
-      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "limit": "公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。",
       "version": "1.0.0"
     },
     {
@@ -59,7 +59,7 @@
       "permissions": [],
       "risk": "read",
       "test": "独立MCP实机通过",
-      "limit": "公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。",
+      "limit": "公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。",
       "version": "1.0.0"
     },
     {
@@ -431,7 +431,7 @@
       "permissions": [],
       "risk": "read",
       "test": "独立MCP实机通过",
-      "limit": "AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。",
+      "limit": "Node本机时钟/OS接口；返回本地日期时间、UTC、IANA时区和偏移；离线可用，不依赖Helper；以本机系统时间为准。",
       "version": "1.0.0"
     },
     {

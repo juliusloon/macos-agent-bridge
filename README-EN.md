@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-087f8c" alt="Release v0.2.0"></a>
+  <a href="https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-087f8c" alt="Release v0.3.0"></a>
   <a href="https://github.com/juliusloon/macos-agent-bridge/actions/workflows/ci.yml"><img src="https://github.com/juliusloon/macos-agent-bridge/actions/workflows/ci.yml/badge.svg" alt="Build and test status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-526878" alt="MIT license"></a>
 </p>
@@ -18,13 +18,13 @@ Give AI agents **MCP access to your Mac's calendars, reminders, files and deskto
 
 **63 tool definitions · 5 extension commands · Runs locally.** The tool count is not a claim that every capability has passed testing on a real Mac. See the [capability matrix](docs/CAPABILITY_COVERAGE.md) for individual status.
 
-[Download v0.2.0](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0) · [Quick start](#quick-start) · [Capabilities and limits](#capabilities-and-limits) · [Security](docs/SECURITY.md)
+[Download v0.3.0](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0) · [Quick start](#quick-start) · [Capabilities and limits](#capabilities-and-limits) · [Security](docs/SECURITY.md)
 
 ## Start with one call
 
 After installing and connecting MCP, try this in Tinycast AI Chat:
 
-> @macos-bridge Read only the system time zone and uptime.
+> @macos-bridge Read the current local date, time, time zone and system uptime.
 
 You can also ask an agent to list calendars, find free time in a specific range, or search and read public webpages. Calendar access and other protected resources need the corresponding macOS permissions; web tools require a network connection.
 
@@ -34,15 +34,17 @@ Developers can call the same MCP tool directly:
 {"name":"system_status","arguments":{}}
 ```
 
+`system_status` reads the host clock directly and returns `localDate`, `localTime` with a UTC offset, UTC `currentTime`, IANA `timezone`, and `unixTimeMs`. It works offline without the native helper or macOS permissions. Call it first when resolving relative dates. For failed web requests, inspect `phase`, `causeCode`, and `hint`. Failed or non-public system DNS answers fall back to Cloudflare HTTPS DNS, sharing only the hostname; set `BRIDGE_DNS_FALLBACK=off` to disable this. See [date and network troubleshooting](docs/NETWORK-TROUBLESHOOTING.md) (Chinese).
+
 Every call returns `ok`, `error` or `confirmation_required`. **A pending action has not executed.** Review its exact arguments in the extension and approve it; the agent can then retrieve the result using the original idempotency key.
 
 ## Quick start
 
-> **v0.2.0 is the initial public development release.** The prebuilt package targets Apple Silicon. Its helper is ad-hoc signed and has not undergone Developer ID notarization or store review. macOS may block the first launch; see [distribution and security](docs/SECURITY.md), or build from source.
+> **v0.3.0 is a public development release.** The prebuilt package targets Apple Silicon. Its helper is ad-hoc signed and has not undergone Developer ID notarization or store review. macOS may block the first launch; see [distribution and security](docs/SECURITY.md), or build from source.
 
 ### 1. Install the runtime components
 
-Download `macos-agent-bridge-macos-arm64.zip` and `SHA256SUMS` from the [Release](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0). Verify them in your download directory, then extract the archive:
+Download `macos-agent-bridge-macos-arm64.zip` and `SHA256SUMS` from the [Release](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0). Verify them in your download directory, then extract the archive:
 
 ```sh
 shasum -a 256 -c SHA256SUMS

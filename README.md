@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-087f8c" alt="Release v0.2.0"></a>
+  <a href="https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0"><img src="https://img.shields.io/badge/release-v0.3.0-087f8c" alt="Release v0.3.0"></a>
   <a href="https://github.com/juliusloon/macos-agent-bridge/actions/workflows/ci.yml"><img src="https://github.com/juliusloon/macos-agent-bridge/actions/workflows/ci.yml/badge.svg" alt="构建与测试状态"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-526878" alt="MIT 许可证"></a>
 </p>
@@ -18,13 +18,13 @@
 
 **63 个工具定义 · 5 个扩展命令 · 本地运行**。工具数量不等于全部能力均已实机验收，逐项状态见[能力覆盖矩阵](docs/CAPABILITY_COVERAGE.md)。
 
-[下载 v0.2.0](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0) · [快速开始](#快速开始) · [能力与边界](#能力与边界) · [安全说明](docs/SECURITY.md)
+[下载 v0.3.0](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0) · [快速开始](#快速开始) · [能力与边界](#能力与边界) · [安全说明](docs/SECURITY.md)
 
 ## 从一次调用开始
 
 完成安装与 MCP 连接后，在 Tinycast AI Chat 中试试：
 
-> @macos-bridge 仅查询系统时区和运行时间。
+> @macos-bridge 查询当前本地日期、时间、时区和系统运行时间。
 
 也可以让 Agent 列出可用日历、查询指定时间段的空闲，或搜索并读取公开网页。日历等资源需要对应的 macOS 权限；联网工具需要网络连接。
 
@@ -34,15 +34,17 @@
 {"name":"system_status","arguments":{}}
 ```
 
+`system_status` 直接读取本机时钟，返回 `localDate`、带 UTC 偏移的 `localTime`、UTC `currentTime`、IANA `timezone` 和 `unixTimeMs`，不需要联网、Helper 或系统授权。处理“今天晚上”“明天”时先调用它。网页获取失败时，查看错误中的 `phase`、`causeCode` 和 `hint`。系统 DNS 异常时默认回退到 Cloudflare HTTPS DNS，仅发送域名，可通过 `BRIDGE_DNS_FALLBACK=off` 关闭；详见[日期与联网故障排查](docs/NETWORK-TROUBLESHOOTING.md)。
+
 所有调用返回统一的 `ok`、`error` 或 `confirmation_required` 状态。**待确认表示尚未执行**；在扩展里审阅参数并批准后，Agent 可用原幂等键取得结果。
 
 ## 快速开始
 
-> **v0.2.0 是初始公开开发版本。** 预构建包面向 Apple Silicon，Helper 使用 ad-hoc 签名，尚未完成 Developer ID 公证或商店审核。macOS 可能阻止首次打开；参阅[发行与安全说明](docs/SECURITY.md)，也可选择从源码构建。
+> **v0.3.0 为公开开发版本。** 预构建包面向 Apple Silicon，Helper 使用 ad-hoc 签名，尚未完成 Developer ID 公证或商店审核。macOS 可能阻止首次打开；参阅[发行与安全说明](docs/SECURITY.md)，也可选择从源码构建。
 
 ### 1. 安装运行组件
 
-从 [Release](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.2.0) 下载 `macos-agent-bridge-macos-arm64.zip` 和 `SHA256SUMS`，在下载目录校验后解压：
+从 [Release](https://github.com/juliusloon/macos-agent-bridge/releases/tag/v0.3.0) 下载 `macos-agent-bridge-macos-arm64.zip` 和 `SHA256SUMS`，在下载目录校验后解压：
 
 ```sh
 shasum -a 256 -c SHA256SUMS

@@ -7,9 +7,9 @@
 | `bridge_diagnostics` | implemented | bridge | 无额外TCC | read | 独立MCP实机通过 | MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。 |
 | `bridge_list_capabilities` | implemented | bridge | 无额外TCC | read | 独立Agent/协议实机通过 | MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。 |
 | `bridge_get_operation` | implemented | bridge | 无额外TCC | read | 独立MCP实机通过 | MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。 |
-| `web_fetch` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。 |
-| `web_search` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。 |
-| `network_check` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。 |
+| `web_fetch` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。 |
+| `web_search` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。 |
+| `network_check` | implemented | network | 无额外TCC | read | 独立MCP实机通过 | 公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。 |
 | `calendar_list_calendars` | implemented | calendar | calendar | read | 独立MCP实机通过 | 单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。 |
 | `calendar_list_events` | implemented | calendar | calendar | read | 独立MCP实机通过 | 单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。 |
 | `calendar_find_free_slots` | implemented | calendar | calendar | read | 独立MCP实机通过 | 单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。 |
@@ -43,7 +43,7 @@
 | `system_open_app` | partial | system | 无额外TCC | write | 源码/编译验证；未完成本机成功调用 | AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。 |
 | `system_activate_app` | partial | system | 无额外TCC | write | 源码/编译验证；未完成本机成功调用 | AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。 |
 | `system_open_url` | partial | system | 无额外TCC | write | 源码/编译验证；未完成本机成功调用 | AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。 |
-| `system_status` | implemented | system | 无额外TCC | read | 独立MCP实机通过 | AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。 |
+| `system_status` | implemented | system | 无额外TCC | read | 独立MCP实机通过 | Node本机时钟/OS接口；返回本地日期时间、UTC、IANA时区和偏移；离线可用，不依赖Helper；以本机系统时间为准。 |
 | `system_run_command` | implemented | utility | 无额外TCC | read | 独立MCP实机通过 | 固定uptime/df/pmset；不接受动态shell字符串或任意代码。 |
 | `system_get_selected_text` | blocked | accessibility | accessibility | read | 源码/编译验证；未完成本机成功调用 | 依赖目标应用AX支持；只支持读取选区/活动窗口和窗口位置尺寸；不提供通用GUI代理。 |
 | `system_list_windows` | implemented | system | screenRecording | read | 独立MCP实机通过 | AppKit公共接口；窗口标题可能需Screen Recording；截图默认第一个显示器；只读纯文本剪贴板，无历史。 |

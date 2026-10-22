@@ -10,6 +10,7 @@ import { fileAction, scopedPath } from './adapters/files.js';
 import { approvalGuidance } from '../../shared/approval.js';
 import { bridgeVersion } from '../../shared/version.js';
 import { networkAction } from './adapters/network.js';
+import { systemStatus } from './adapters/system.js';
 const Ajv = AjvModule.default;
 const ajv = new Ajv({ allErrors: true, strict: false });
 const validators = new Map(registry.map(t => [t.name, ajv.compile(t.inputSchema)]));
@@ -170,6 +171,7 @@ export class Engine {
       return request ? { ...base, state: request.status === 'denied' ? 'denied' : Date.parse(request.expiresAt) <= Date.now() ? 'expired' : request.status, approvalId: request.id, expiresAt: request.expiresAt } : { ...base, state: 'not_found' };
     }
     if (name.startsWith('web_') || name.startsWith('network_')) return networkAction(name, args);
+    if (name === 'system_status') return systemStatus();
     if (name.startsWith('finder_')) return fileAction(name, args, config.roots);
     if (name === 'system_capture_screen') { args.outputPath = await scopedPath(args.outputPath, config.roots, true); if (!String(args.outputPath).toLowerCase().endsWith('.png')) throw new BridgeError('PNG_REQUIRED', 'outputPath must end in .png'); }
     if (name === 'system_run_command') { const commands: Record<string, [string, string[]]> = { disk_usage: ['/bin/df', ['-h']], battery: ['/usr/bin/pmset', ['-g', 'batt']], uptime: ['/usr/bin/uptime', []] }; const [file, argv] = commands[String(args.command)]; const { stdout } = await exec(file, argv, { timeout: 10000, maxBuffer: 65536 }); return { command: args.command, stdout: stdout.trim() }; }

@@ -43,7 +43,7 @@ function dataContract(name: string): Schema {
     case 'system_list_apps': return obj({ apps: array(app) });
     case 'system_activate_app': return obj({ activated: b, app });
     case 'system_open_url': return obj({ opened: b, url: s });
-    case 'system_status': return obj({ os: s, uptimeSeconds: n, processorCount: n, physicalMemoryBytes: n, timezone: s });
+    case 'system_status': return obj({ os: s, uptimeSeconds: n, processorCount: n, physicalMemoryBytes: n, timezone: s, currentTime: s, localTime: s, localDate: s, utcOffsetMinutes: n, unixTimeMs: n });
     case 'system_run_command': return obj({ command: s, stdout: s });
     case 'system_get_selected_text': return obj({ text: s });
     case 'system_get_active_window': return obj({ title: s, frame });

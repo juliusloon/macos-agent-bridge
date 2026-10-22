@@ -11,7 +11,10 @@ import { getSystemProxy, type SystemProxyProvider } from './system-proxy.js';
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const USER_AGENT = 'MacOSAgentBridge/0.2 (+public-web-reader)';
+const TRANSIENT_CONNECTION_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH', 'EADDRNOTAVAIL', 'EPIPE']);
 interface Address { address: string; family: number }
+type DnsSource = 'system' | 'public-doh';
+interface Resolution { addresses: Address[]; dnsSource: DnsSource }
 interface Response { statusCode: number; headers: Record<string, string | undefined>; body: Buffer }
 interface RequestOptions { url: URL; address: Address; method: 'GET' | 'HEAD'; signal: AbortSignal; headers: Record<string, string> }
 export interface NetworkDependencies {
@@ -19,6 +22,7 @@ export interface NetworkDependencies {
   transport?: (options: RequestOptions) => Promise<Response>;
   environment?: Record<string, string | undefined>;
   systemProxy?: SystemProxyProvider;
+  publicResolve?: (hostname: string, signal: AbortSignal) => Promise<Address[]>;
 }
 
 /** Only routable public addresses are accepted, including addresses returned by DNS. */
@@ -49,7 +53,27 @@ function parseUrl(raw: unknown): URL {
   if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa')) throw new BridgeError('NETWORK_ADDRESS_FORBIDDEN', 'Local-network destinations are not allowed.');
   url.hash = ''; return url;
 }
-function abortError(): BridgeError { return new BridgeError('NETWORK_TIMEOUT', 'Network request exceeded its total timeout.'); }
+function abortError(): BridgeError {
+  return new BridgeError('NETWORK_TIMEOUT', 'Network request exceeded its total timeout.', {
+    phase: 'request', retryable: true, hint: 'The total deadline includes queueing, DNS, connections and redirects. Retry once or use network_check; do not keep changing URLs to obtain the current date, use system_status.',
+  });
+}
+function connectionFailure(error: unknown, hostname: string, phase: 'dns' | 'connect' | 'proxy'): BridgeError {
+  if (error instanceof BridgeError) return error;
+  // Keep only a machine error code, never raw messages that may contain proxy credentials or query strings.
+  const rawCode = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+  const causeCode = typeof rawCode === 'string' && /^[A-Z][A-Z0-9_]{1,63}$/.test(rawCode) ? rawCode : undefined;
+  const tls = phase !== 'dns' && /^(?:ERR_TLS_|ERR_SSL_|CERT_|DEPTH_|SELF_SIGNED_|UNABLE_TO_)/.test(causeCode || '');
+  const retryable = phase === 'dns' ? causeCode === 'EAI_AGAIN' : TRANSIENT_CONNECTION_CODES.has(causeCode || '');
+  const hint = phase === 'dns' ? 'Verify the hostname and local DNS configuration. ENOTFOUND is a DNS failure, not an HTTP error. Use system_status for the current date.'
+    : tls ? 'TLS certificate or protocol validation failed. Check the destination and proxy configuration; do not disable certificate verification.'
+    : phase === 'proxy' ? 'The configured proxy could not establish a tunnel. Check the local HTTP(S) proxy and its authentication, then retry once.'
+    : 'The connection failed before a complete HTTP response. Use network_check for this host; check the proxy/network or try one alternative source. Use system_status for the current date.';
+  const code = phase === 'dns' ? 'NETWORK_DNS_FAILED' : phase === 'proxy' ? 'NETWORK_PROXY_ERROR' : tls ? 'NETWORK_TLS_FAILED' : 'NETWORK_REQUEST_FAILED';
+  return new BridgeError(code, `${phase === 'dns' ? 'DNS resolution' : phase === 'proxy' ? 'Proxy connection' : 'Connection'} failed for ${hostname}${causeCode ? ` (${causeCode})` : ''}.`, {
+    hostname, phase: tls ? 'tls' : phase, ...(causeCode ? { causeCode } : {}), retryable, hint,
+  });
+}
 async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) throw abortError();
   return new Promise<T>((resolve, reject) => {
@@ -97,19 +121,21 @@ async function proxyTunnel(proxy: URL, options: RequestOptions): Promise<Socket>
     // Proxy location is trusted local configuration. The remote CONNECT target remains a validated, pinned public IP.
     const request = (proxy.protocol === 'https:' ? httpsRequest : httpRequest)({ protocol: proxy.protocol, hostname: proxy.hostname, port: proxy.port, method: 'CONNECT', path: authority, headers, signal, agent: false });
     request.on('connect', (response, socket, head) => {
-      if (response.statusCode !== 200) { socket.destroy(); reject(new BridgeError('NETWORK_PROXY_ERROR', `Configured proxy returned HTTP ${response.statusCode || 0}.`)); return; }
+      if (response.statusCode !== 200) { socket.destroy(); reject(new BridgeError('NETWORK_PROXY_ERROR', `Configured proxy returned HTTP ${response.statusCode || 0}.`, { hostname: url.hostname, phase: 'proxy', statusCode: response.statusCode || 0, retryable: false, hint: 'Check proxy authentication and CONNECT support. Changing the destination URL will not fix proxy configuration.' })); return; }
       if (signal.aborted) { socket.destroy(); reject(abortError()); return; }
       if (head.length) socket.unshift(head);
       resolve(socket as Socket);
     });
-    request.on('response', response => { response.destroy(); reject(new BridgeError('NETWORK_PROXY_ERROR', 'Configured proxy refused the connection tunnel.')); });
+    request.on('response', response => { response.destroy(); reject(new BridgeError('NETWORK_PROXY_ERROR', 'Configured proxy refused the connection tunnel.', { hostname: url.hostname, phase: 'proxy', retryable: false, hint: 'Check the configured HTTP(S) proxy and CONNECT support.' })); });
     request.on('error', reject); request.end();
   });
 }
 /** Low-level transport is exported for isolated local-proxy regression tests, never registered as a tool. */
 export async function networkTransport(options: RequestOptions, environment: Record<string, string | undefined> = process.env, systemProxy?: SystemProxyProvider): Promise<Response> {
   const proxy = await abortable(selectNetworkProxy(options.url, environment, systemProxy), options.signal);
-  const tunnel = proxy ? await proxyTunnel(proxy, options) : undefined;
+  let tunnel: Socket | undefined;
+  try { tunnel = proxy ? await proxyTunnel(proxy, options) : undefined; }
+  catch (error) { if (options.signal.aborted) throw abortError(); throw connectionFailure(error, options.url.hostname, 'proxy'); }
   const { url, address, method, signal, headers } = options;
   let agent: HttpAgent | HttpsAgent | false = false;
   if (tunnel) {
@@ -181,8 +207,41 @@ function decodeBody(response: Response): string {
   const charset = response.headers['content-type']?.match(/charset\s*=\s*["']?([^;\s"']+)/i)?.[1] || 'utf-8';
   try { return new TextDecoder(charset).decode(response.body); } catch { return response.body.toString('utf8'); }
 }
-function requireSuccess(response: Response): void {
-  if (response.statusCode < 200 || response.statusCode >= 300) throw new BridgeError('NETWORK_HTTP_ERROR', `Remote server returned HTTP ${response.statusCode}.`, { statusCode: response.statusCode });
+function requireSuccess(response: Response & { url: URL; dnsSource?: DnsSource }): void {
+  const statusCode = response.statusCode;
+  if (statusCode < 200 || statusCode >= 300) throw new BridgeError('NETWORK_HTTP_ERROR', `Remote server returned HTTP ${statusCode}.`, {
+    hostname: response.url.hostname, phase: 'http', statusCode, ...(response.dnsSource ? { dnsSource: response.dnsSource } : {}), retryable: statusCode === 408 || statusCode === 429 || statusCode >= 500,
+    hint: [401, 403].includes(statusCode) ? 'The server is reachable but refuses this anonymous request (authentication, access policy or anti-bot protection). Use another accessible source; repeated identical fetches will not help.'
+      : statusCode === 404 ? 'The server is reachable but this URL does not exist. Verify the documented endpoint instead of guessing paths.'
+      : statusCode === 429 ? 'The server rate-limited this request. Wait before retrying.' : 'Inspect the HTTP status; retry a transient server error once or use another source.',
+  });
+}
+function responseMetadata(response: Response & { dnsSource: DnsSource }) {
+  const serverDate = response.headers.date;
+  return { fetchedAt: new Date().toISOString(), serverDate: serverDate && Number.isFinite(Date.parse(serverDate)) ? new Date(serverDate).toISOString() : null, dnsSource: response.dnsSource };
+}
+function validateAddresses(addresses: Address[], hostname: string): Address[] {
+  if (!addresses.length) throw new BridgeError('NETWORK_DNS_FAILED', 'DNS returned no addresses.', { hostname, phase: 'dns', retryable: false, hint: 'Check the hostname and DNS configuration.' });
+  const forbiddenAddresses = addresses.filter(item => !isPublicAddress(item.address)).map(item => item.address);
+  if (forbiddenAddresses.length) throw new BridgeError('NETWORK_ADDRESS_FORBIDDEN', 'Destination resolves to a private, reserved or local-network address.', {
+    hostname, phase: 'dns', addresses: addresses.map(item => item.address), forbiddenAddresses, retryable: false,
+    hint: 'Check DNS/proxy DNS rewriting (including synthetic, reserved or transition addresses). Mixed public and non-public answers from the selected resolver are rejected; do not bypass the public-address restriction.',
+  });
+  return addresses;
+}
+
+/** Fixed HTTPS resolver bootstrap avoids asking contaminated local DNS for the resolver itself. Never follows redirects. */
+export async function publicDnsLookup(hostname: string, signal: AbortSignal, environment: Record<string, string | undefined>, systemProxy?: SystemProxyProvider, transport = networkTransport): Promise<Address[]> {
+  const url = new URL('https://cloudflare-dns.com/dns-query'); url.searchParams.set('name', hostname); url.searchParams.set('type', 'A');
+  const response = await abortable(transport({ url, address: { address: '1.1.1.1', family: 4 }, method: 'GET', signal, headers: { accept: 'application/dns-json', 'user-agent': USER_AGENT, 'accept-encoding': 'gzip, deflate, br' } }, environment, systemProxy), signal);
+  const invalid = () => new BridgeError('NETWORK_DNS_FAILED', 'Public HTTPS DNS lookup failed.', { hostname, phase: 'dns', dnsSource: 'public-doh', retryable: false, hint: 'Check the public DNS resolver connection or set BRIDGE_DNS_FALLBACK=off to use only system DNS.' });
+  if (response.statusCode !== 200 || response.body.length > 65536) throw invalid();
+  let data: { Status?: number; TC?: boolean; Answer?: { type?: number; data?: string }[] };
+  try { data = JSON.parse(response.body.toString('utf8')) as typeof data; } catch { throw invalid(); }
+  if (!data || data.Status !== 0 || data.TC === true || !Array.isArray(data.Answer)) throw invalid();
+  const answers = data.Answer.filter(item => item && item.type === 1);
+  if (answers.some(item => typeof item.data !== 'string' || isIP(item.data) !== 4)) throw invalid();
+  return validateAddresses(answers.map(item => ({ address: item.data!, family: 4 })), hostname);
 }
 
 /** Injectable only in-process for deterministic tests; no tool argument can override transport or DNS. */
@@ -192,32 +251,51 @@ export class NetworkClient {
   private readonly resolve: NonNullable<NetworkDependencies['resolve']>;
   private readonly transport: NonNullable<NetworkDependencies['transport']>;
   private readonly environment: Record<string, string | undefined>;
+  private readonly publicResolve?: NetworkDependencies['publicResolve'];
   constructor(dependencies: NetworkDependencies = {}) {
     this.resolve = dependencies.resolve || (hostname => lookup(hostname, { all: true, verbatim: true }));
     this.environment = dependencies.environment || process.env;
     const systemProxy = dependencies.systemProxy || (dependencies.environment === undefined ? getSystemProxy : undefined);
     this.transport = dependencies.transport || (options => networkTransport(options, this.environment, systemProxy));
+    // Injected DNS stays isolated in tests. Production fallback is disableable without changing global DNS settings.
+    this.publicResolve = this.environment.BRIDGE_DNS_FALLBACK === 'off' ? undefined : dependencies.publicResolve || (dependencies.resolve === undefined ? (hostname, signal) => publicDnsLookup(hostname, signal, this.environment, systemProxy) : undefined);
   }
-  private async addresses(url: URL, signal: AbortSignal): Promise<Address[]> {
+  private async addresses(url: URL, signal: AbortSignal): Promise<Resolution> {
     const hostname = url.hostname.replace(/^\[|\]$/g, '');
     const literalFamily = isIP(hostname);
-    let addresses: Address[];
-    try { addresses = literalFamily ? [{ address: hostname, family: literalFamily }] : await abortable(this.resolve(hostname), signal); }
-    catch (error) { if (error instanceof BridgeError) throw error; throw new BridgeError('NETWORK_DNS_FAILED', `DNS resolution failed for ${hostname}.`); }
-    if (!addresses.length) throw new BridgeError('NETWORK_DNS_FAILED', 'DNS returned no addresses.');
-    if (addresses.some(item => !isPublicAddress(item.address))) throw new BridgeError('NETWORK_ADDRESS_FORBIDDEN', 'Destination resolves to a private, reserved or local-network address.');
-    return addresses;
+    try {
+      const addresses = literalFamily ? [{ address: hostname, family: literalFamily }] : await abortable(this.resolve(hostname), signal);
+      return { addresses: validateAddresses(addresses, hostname), dnsSource: 'system' };
+    } catch (error) {
+      const localFailure = connectionFailure(error, hostname, 'dns');
+      if (signal.aborted || literalFamily || !this.publicResolve || !['NETWORK_DNS_FAILED', 'NETWORK_ADDRESS_FORBIDDEN'].includes(localFailure.code)) throw localFailure;
+      try { return { addresses: validateAddresses(await abortable(this.publicResolve(hostname, signal), signal), hostname), dnsSource: 'public-doh' }; }
+      catch (fallbackError) {
+        if (signal.aborted) throw abortError();
+        const failure = connectionFailure(fallbackError, hostname, 'dns');
+        throw new BridgeError(localFailure.code, localFailure.message, { ...(localFailure.details as object), publicDnsFallback: { code: failure.code, details: failure.details } });
+      }
+    }
   }
-  private async fetch(raw: string | URL, signal: AbortSignal, method: 'GET' | 'HEAD' = 'GET', headers: Record<string, string> = {}): Promise<Response & { url: URL }> {
+  private async fetch(raw: string | URL, signal: AbortSignal, method: 'GET' | 'HEAD' = 'GET', headers: Record<string, string> = {}): Promise<Response & { url: URL; dnsSource: DnsSource }> {
     let url = parseUrl(raw);
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      const addresses = await this.addresses(url, signal);
-      const address = addresses.find(item => item.family === 4) || addresses[0];
-      let response: Response;
-      try { response = await abortable(this.transport({ url, address, method, signal, headers: { 'user-agent': USER_AGENT, accept: 'text/html,application/json,text/plain;q=0.9,*/*;q=0.1', 'accept-encoding': 'gzip, deflate, br', ...headers } }), signal); }
-      catch (error) { if (signal.aborted) throw abortError(); if (error instanceof BridgeError) throw error; throw new BridgeError('NETWORK_REQUEST_FAILED', `Unable to connect to ${url.hostname}.`); }
+      const { addresses, dnsSource } = await this.addresses(url, signal);
+      // Try up to three distinct validated addresses on transient connection failures, within the same total deadline.
+      const candidates = [...new Map(addresses.map(item => [item.address, item])).values()].sort((a, b) => a.family - b.family).slice(0, 3);
+      let response: Response | undefined;
+      for (const [index, address] of candidates.entries()) {
+        try { response = await abortable(this.transport({ url, address, method, signal, headers: { 'user-agent': USER_AGENT, accept: 'text/html,application/json,text/plain;q=0.9,*/*;q=0.1', 'accept-encoding': 'gzip, deflate, br', ...headers } }), signal); break; }
+        catch (error) {
+          if (signal.aborted) throw abortError();
+          const failure = connectionFailure(error, url.hostname, 'connect');
+          const details = failure.details as { phase?: string; causeCode?: string } | undefined;
+          if (details?.phase !== 'connect' || !TRANSIENT_CONNECTION_CODES.has(details.causeCode || '') || index === candidates.length - 1) throw failure;
+        }
+      }
+      if (!response) throw new BridgeError('NETWORK_REQUEST_FAILED', 'No destination address available.');
       if (response.body.length > MAX_BYTES) throw new BridgeError('NETWORK_RESPONSE_TOO_LARGE', 'Response exceeds the 2 MiB limit.');
-      if (![301, 302, 303, 307, 308].includes(response.statusCode)) return { ...response, url };
+      if (![301, 302, 303, 307, 308].includes(response.statusCode)) return { ...response, url, dnsSource };
       if (!response.headers.location) throw new BridgeError('NETWORK_INVALID_REDIRECT', 'Redirect response has no destination.');
       if (hop === MAX_REDIRECTS) throw new BridgeError('NETWORK_REDIRECT_LIMIT', 'Too many redirects.');
       let next: URL;
@@ -249,15 +327,15 @@ export class NetworkClient {
   }
   private async execute(name: string, args: Params, signal: AbortSignal): Promise<unknown> {
     if (name === 'network_check') {
-      const url = parseUrl(args.url); const started = performance.now(); const addresses = await this.addresses(url, signal);
+      const url = parseUrl(args.url); const started = performance.now(); const { addresses, dnsSource } = await this.addresses(url, signal);
       const dnsMs = Math.round((performance.now() - started) * 100) / 100;
       let http = null;
       if (args.http !== false) {
         const begin = performance.now(); let response = await this.fetch(url, signal, 'HEAD');
         if ([405, 501].includes(response.statusCode)) response = await this.fetch(url, signal, 'GET');
-        http = { url: response.url.href, statusCode: response.statusCode, elapsedMs: Math.round((performance.now() - begin) * 100) / 100, reachable: response.statusCode >= 200 && response.statusCode < 400 };
+        http = { url: response.url.href, statusCode: response.statusCode, elapsedMs: Math.round((performance.now() - begin) * 100) / 100, reachable: response.statusCode >= 200 && response.statusCode < 400, ...responseMetadata(response) };
       }
-      return { hostname: url.hostname, addresses: addresses.map(item => item.address), dnsMs, http };
+      return { hostname: url.hostname, addresses: addresses.map(item => item.address), dnsSource, dnsMs, http };
     }
     if (name === 'web_fetch') {
       const response = await this.fetch(String(args.url), signal); requireSuccess(response);
@@ -267,7 +345,7 @@ export class NetworkClient {
       const content = html ? readable(raw) : raw;
       const maxChars = Number(args.maxChars ?? 20000);
       if (!Number.isInteger(maxChars) || maxChars < 100 || maxChars > 100000) throw new BridgeError('INVALID_ARGUMENTS', 'maxChars must be between 100 and 100000.');
-      return { url: response.url.href, statusCode: response.statusCode, contentType, title: html ? readable(raw.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i)?.[1] || '').slice(0, 500) : '', content: content.slice(0, maxChars), links: html ? htmlLinks(raw, response.url) : [], bytes: response.body.length, truncated: content.length > maxChars, untrustedContent: true };
+      return { url: response.url.href, statusCode: response.statusCode, contentType, title: html ? readable(raw.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i)?.[1] || '').slice(0, 500) : '', content: content.slice(0, maxChars), links: html ? htmlLinks(raw, response.url) : [], bytes: response.body.length, truncated: content.length > maxChars, untrustedContent: true, ...responseMetadata(response) };
     }
     const query = typeof args.query === 'string' ? args.query.trim() : '';
     if (!query || query.length > 1000) throw new BridgeError('INVALID_ARGUMENTS', 'Provide a search query of 1–1000 characters.');

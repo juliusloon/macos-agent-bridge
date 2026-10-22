@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 const baseline = JSON.parse(await readFile('docs/capability-coverage.json', 'utf8')) as { records: { name: string; status: string; test: string }[] };
 const previous = new Map(baseline.records.map(record => [record.name, record]));
 const limits: Record<string, string> = {
-  network: '公网HTTP(S)；默认自动识别macOS系统代理；文本/解压响应≤2MiB；禁内网与JS执行；DuckDuckGo或可选Brave。',
+  network: '公网HTTP(S)；系统代理及可关闭的HTTPS DNS回退；错误含原因/建议；最多3个已验证IP且共用总超时；解压≤2MiB；禁内网与JS；DuckDuckGo或Brave。',
   bridge: 'MCP stdio；Tinycast需单独启用/注册MCP；扩展导入不会自动启用AI工具。',
   calendar: '单次事件；更新/删除只影响API返回的该发生项；未测试重复事件系列、邀请/账户提供方差异。',
   reminders: '基本字段；不含子任务、地理围栏、重复规则；到期时间必须指定时区。',
@@ -23,7 +23,8 @@ const records = registry.map(t => {
   const known = previous.get(t.name);
   const status = known?.status ?? 'partial';
   const test = known?.test ?? '新增工具；尚未完成实机验证';
-  return { name: t.name, adapter: t.adapter, status, permissions: t.requiredPermissions, risk: t.riskLevel, test, limit: limits[t.adapter], version: t.version };
+  const limit = t.name === 'system_status' ? 'Node本机时钟/OS接口；返回本地日期时间、UTC、IANA时区和偏移；离线可用，不依赖Helper；以本机系统时间为准。' : limits[t.adapter];
+  return { name: t.name, adapter: t.adapter, status, permissions: t.requiredPermissions, risk: t.riskLevel, test, limit, version: t.version };
 });
 await mkdir('docs', { recursive: true });
 await writeFile('docs/capability-coverage.json', JSON.stringify({ definitions: registry.length, note: '脱敏的开发验证摘要；implemented仅表示在说明边界内有验证，不代表全部宿主与原生读写均已验收。原始本机证据不公开。', records }, null, 2));

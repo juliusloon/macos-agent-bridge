@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NetworkClient, isPublicAddress, type NetworkDependencies } from '../mcp-server/src/adapters/network.js';
+import { NetworkClient, isPublicAddress, publicDnsLookup, type NetworkDependencies } from '../mcp-server/src/adapters/network.js';
 import { networkDefinitions, networkDataContract } from '../shared/network.js';
 import { BridgeError } from '../mcp-server/src/types.js';
 import AjvModule from 'ajv';
@@ -26,6 +26,72 @@ test('DNS validation rejects mixed public/private answers and passes the exact v
   let connections = 0;
   const pinned = client(async options => { connections++; assert.deepEqual(options.address, { address: '93.184.216.34', family: 4 }); assert.equal(options.url.hostname, 'example.org'); return response('ok', 'text/plain'); });
   await pinned.call('web_fetch', { url: 'https://example.org/' }); assert.equal(connections, 1);
+});
+
+test('public DNS fallback recovers contaminated system answers while pinning only revalidated public addresses', async () => {
+  let fallbacks = 0; const used: string[] = [];
+  const c = client(async options => { used.push(options.address.address); return response('recovered', 'text/plain'); }, {
+    resolve: async () => [{ address: '8.8.8.8', family: 4 }, { address: '2001::1', family: 6 }],
+    publicResolve: async (hostname, signal) => { fallbacks++; assert.equal(hostname, 'example.org'); assert.equal(signal.aborted, false); return [{ address: '1.1.1.1', family: 4 }]; },
+  });
+  const result = await c.call('web_fetch', { url: 'https://example.org/' }) as { content: string; dnsSource: string };
+  assert.equal(result.content, 'recovered'); assert.equal(result.dnsSource, 'public-doh'); assert.deepEqual(used, ['1.1.1.1']); assert.equal(fallbacks, 1);
+  const failedLocal = client(async () => assert.fail('DNS-only check must not reach destination'), {
+    resolve: async () => { throw Object.assign(new Error('not found'), { code: 'ENOTFOUND' }); },
+    publicResolve: async () => [{ address: '1.1.1.1', family: 4 }],
+  });
+  const checked = await failedLocal.call('network_check', { url: 'https://example.org/', http: false }) as { dnsSource: string; addresses: string[] };
+  assert.equal(checked.dnsSource, 'public-doh'); assert.deepEqual(checked.addresses, ['1.1.1.1']);
+});
+
+test('public DNS fallback never accepts private answers, follows local URLs or overrides an explicit opt-out', async () => {
+  for (const fallback of [async () => [{ address: '127.0.0.1', family: 4 }], async () => [{ address: '1.1.1.1', family: 4 }, { address: '10.0.0.1', family: 4 }], async (): Promise<never> => { throw new Error('resolver unavailable'); }]) {
+    const c = client(async () => assert.fail('Must not connect'), { resolve: async () => [{ address: '198.18.0.1', family: 4 }], publicResolve: fallback });
+    await assert.rejects(c.call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+      assert.ok(error instanceof BridgeError); assert.equal(error.code, 'NETWORK_ADDRESS_FORBIDDEN'); assert.ok((error.details as { publicDnsFallback: unknown }).publicDnsFallback); return true;
+    });
+  }
+  const neverFallback = async (): Promise<never> => assert.fail('Must not consult public DNS');
+  const c = client(async () => assert.fail('Must not connect'), { publicResolve: neverFallback });
+  for (const url of ['http://127.0.0.1/', 'http://localhost/', 'http://device.local/', 'http://10.0.0.1/']) await assert.rejects(c.call('web_fetch', { url }), errorCode('NETWORK_ADDRESS_FORBIDDEN'));
+  const off = client(async () => assert.fail('Must not connect'), { resolve: async () => [{ address: '198.18.0.1', family: 4 }], publicResolve: neverFallback, environment: { BRIDGE_DNS_FALLBACK: 'off' } });
+  await assert.rejects(off.call('web_fetch', { url: 'https://example.org/' }), errorCode('NETWORK_ADDRESS_FORBIDDEN'));
+});
+
+test('fixed HTTPS DNS bootstrap pins the resolver IP, validates payloads and refuses redirects', async () => {
+  const signal = AbortSignal.timeout(1000);
+  const answer = JSON.stringify({ Status: 0, Answer: [{ type: 5, data: 'alias.example.org.' }, { type: 1, data: '8.8.8.8' }] });
+  const result = await publicDnsLookup('example.org', signal, {}, undefined, async options => {
+    assert.equal(options.url.origin, 'https://cloudflare-dns.com'); assert.equal(options.url.pathname, '/dns-query');
+    assert.equal(options.url.searchParams.get('name'), 'example.org'); assert.equal(options.url.searchParams.get('type'), 'A');
+    assert.deepEqual(options.address, { address: '1.1.1.1', family: 4 }); assert.equal(options.headers.accept, 'application/dns-json');
+    assert.equal(options.signal, signal); return response(answer, 'application/dns-json');
+  });
+  assert.deepEqual(result, [{ address: '8.8.8.8', family: 4 }]);
+  for (const body of ['null', '{invalid', JSON.stringify({ Status: 3 }), JSON.stringify({ Status: 0, TC: true, Answer: [] }), JSON.stringify({ Status: 0, Answer: [{ type: 1, data: 'not an IP' }] })]) {
+    await assert.rejects(publicDnsLookup('example.org', signal, {}, undefined, async () => response(body, 'application/dns-json')), errorCode('NETWORK_DNS_FAILED'));
+  }
+  await assert.rejects(publicDnsLookup('example.org', signal, {}, undefined, async () => response(JSON.stringify({ Status: 0, Answer: [{ type: 1, data: '127.0.0.1' }] }), 'application/dns-json')), errorCode('NETWORK_ADDRESS_FORBIDDEN'));
+  let requests = 0;
+  await assert.rejects(publicDnsLookup('example.org', signal, {}, undefined, async () => { requests++; return { statusCode: 302, headers: { location: 'http://127.0.0.1/' }, body: Buffer.alloc(0) }; }), errorCode('NETWORK_DNS_FAILED'));
+  assert.equal(requests, 1);
+});
+
+test('public DNS fallback is revalidated on redirects and remains inside the original deadline', async () => {
+  let resolutions = 0; let requests = 0;
+  const c = client(async () => { requests++; return { statusCode: 302, headers: { location: '/again' }, body: Buffer.alloc(0) }; }, {
+    resolve: async () => [{ address: '198.18.0.1', family: 4 }],
+    publicResolve: async () => [{ address: ++resolutions === 1 ? '8.8.8.8' : '127.0.0.1', family: 4 }],
+  });
+  await assert.rejects(c.call('web_fetch', { url: 'https://example.org/' }), errorCode('NETWORK_ADDRESS_FORBIDDEN'));
+  assert.equal(requests, 1); assert.equal(resolutions, 2);
+  let signal: AbortSignal | undefined;
+  const stalled = client(async () => assert.fail('Must not connect'), {
+    resolve: async () => [{ address: '198.18.0.1', family: 4 }],
+    publicResolve: async (_hostname, parentSignal) => { signal = parentSignal; return new Promise(() => {}); },
+  });
+  await assert.rejects(stalled.call('web_fetch', { url: 'https://example.org/', timeoutMs: 1000 }), errorCode('NETWORK_TIMEOUT'));
+  assert.equal(signal?.aborted, true);
 });
 
 test('fetch extracts title, readable text and resolved links, removes active content and bounds output', async () => {
@@ -93,6 +159,118 @@ test('concurrent calls use at most four active requests and release slots after 
   const results = await Promise.allSettled(Array.from({ length: 15 }, () => c.call('web_fetch', { url: 'https://example.org/' })));
   assert.equal(maximum, 4); assert.equal(count, 15); assert.equal(results.filter(result => result.status === 'rejected').length, 1);
   assert.ok(await c.call('web_fetch', { url: 'https://example.org/' }));
+});
+
+test('transient connection errors try distinct validated addresses, bounded to three attempts', async () => {
+  const addresses = ['8.8.8.8', '1.1.1.1', '9.9.9.9', '208.67.222.222']; const tried: string[] = [];
+  const resolve = async () => [...addresses, addresses[0]].map(address => ({ address, family: 4 }));
+  const c = client(async options => {
+    tried.push(options.address.address);
+    if (tried.length === 1) throw Object.assign(new Error('reset'), { code: 'ECONNRESET' });
+    return response('recovered', 'text/plain');
+  }, { resolve });
+  assert.equal((await c.call('web_fetch', { url: 'https://example.org/' }) as { content: string }).content, 'recovered');
+  assert.deepEqual(tried, addresses.slice(0, 2));
+  let attempts = 0;
+  const failed = client(async () => { attempts++; throw Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }); }, { resolve });
+  await assert.rejects(failed.call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+    assert.ok(error instanceof BridgeError); assert.equal(error.code, 'NETWORK_REQUEST_FAILED');
+    assert.equal((error.details as { causeCode: string }).causeCode, 'ECONNREFUSED'); return true;
+  });
+  assert.equal(attempts, 3);
+});
+
+test('HTTP refusals, certificate failures and proxy failures never retry another destination address', async () => {
+  const resolve = async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }];
+  for (const [failure, code, phase] of [
+    [() => response('forbidden', 'text/plain', 403), 'NETWORK_HTTP_ERROR', 'http'],
+    [() => { throw Object.assign(new Error('secret certificate message'), { code: 'DEPTH_ZERO_SELF_SIGNED_CERT' }); }, 'NETWORK_TLS_FAILED', 'tls'],
+    [() => { throw new BridgeError('NETWORK_PROXY_ERROR', 'Proxy refused', { phase: 'proxy', causeCode: 'ECONNREFUSED' }); }, 'NETWORK_PROXY_ERROR', 'proxy'],
+  ] as const) {
+    let attempts = 0;
+    const c = client(async () => { attempts++; return failure(); }, { resolve });
+    await assert.rejects(c.call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+      assert.ok(error instanceof BridgeError); assert.equal(error.code, code);
+      assert.equal((error.details as { phase: string }).phase, phase); return true;
+    });
+    assert.equal(attempts, 1);
+  }
+});
+
+test('diagnostics preserve safe cause codes and hints without leaking raw error messages or URL queries', async () => {
+  const secret = 'http://user:private-password@proxy.example:8080/?token=private-token';
+  for (const [causeCode, expectedCode, phase] of [
+    ['ENOTFOUND', 'NETWORK_DNS_FAILED', 'dns'], ['EAI_AGAIN', 'NETWORK_DNS_FAILED', 'dns'],
+    ['ECONNRESET', 'NETWORK_REQUEST_FAILED', 'connect'], ['CERT_HAS_EXPIRED', 'NETWORK_TLS_FAILED', 'tls'],
+  ] as const) {
+    const fail = async (): Promise<never> => { throw Object.assign(new Error(secret), { code: causeCode }); };
+    const c = phase === 'dns' ? client(async () => assert.fail('Must not connect'), { resolve: fail }) : client(fail);
+    await assert.rejects(c.call('web_fetch', { url: 'https://example.org/?token=private-token' }), (error: unknown) => {
+      assert.ok(error instanceof BridgeError); assert.equal(error.code, expectedCode);
+      const details = error.details as { causeCode: string; phase: string; hostname: string; hint: string; retryable: boolean };
+      assert.equal(details.causeCode, causeCode); assert.equal(details.phase, phase); assert.equal(details.hostname, 'example.org');
+      assert.ok(details.hint); assert.equal(details.retryable, ['EAI_AGAIN', 'ECONNRESET'].includes(causeCode));
+      assert.doesNotMatch(JSON.stringify({ message: error.message, details }), /private-password|private-token/); return true;
+    });
+  }
+  const mixed = client(async () => assert.fail('Must not connect'), { resolve: async () => [{ address: '8.8.8.8', family: 4 }, { address: '2001::1', family: 6 }] });
+  await assert.rejects(mixed.call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+    assert.ok(error instanceof BridgeError); assert.equal(error.code, 'NETWORK_ADDRESS_FORBIDDEN');
+    const details = error.details as { forbiddenAddresses: string[]; retryable: boolean; hint: string };
+    assert.deepEqual(details.forbiddenAddresses, ['2001::1']); assert.equal(details.retryable, false); assert.match(details.hint, /DNS/); return true;
+  });
+});
+
+test('HTTP diagnostics distinguish access denials, missing endpoints and rate limits', async () => {
+  for (const status of [403, 404, 429, 503]) {
+    await assert.rejects(client(async () => response('', 'text/plain', status)).call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+      assert.ok(error instanceof BridgeError); const details = error.details as { statusCode: number; phase: string; retryable: boolean; hint: string };
+      assert.equal(details.statusCode, status); assert.equal(details.phase, 'http'); assert.equal(details.retryable, status >= 429); assert.ok(details.hint); return true;
+    });
+  }
+});
+
+test('fetch and connectivity metadata expose only canonical server dates and fresh host timestamps', async () => {
+  for (const date of ['Thu, 22 Oct 2026 08:21:10 GMT', 'invalid server date', undefined]) {
+    const c = client(async () => ({ ...response('body', 'text/plain'), headers: { 'content-type': 'text/plain', date, 'set-cookie': 'private-cookie' } }));
+    const before = Date.now();
+    const fetched = await c.call('web_fetch', { url: 'https://example.org/' }) as { fetchedAt: string; serverDate: string | null };
+    const checked = await c.call('network_check', { url: 'https://example.org/' }) as { http: { fetchedAt: string; serverDate: string | null } };
+    for (const result of [fetched, checked.http]) {
+      assert.ok(Date.parse(result.fetchedAt) >= before && Date.parse(result.fetchedAt) <= Date.now());
+      assert.equal(result.serverDate, date?.startsWith('Thu') ? '2026-10-22T08:21:10.000Z' : null);
+      assert.doesNotMatch(JSON.stringify(result), /private-cookie/);
+    }
+  }
+});
+
+test('address fallback shares the original absolute timeout instead of resetting it', async () => {
+  const signals = new Set<AbortSignal>(); let attempts = 0;
+  const c = client(async options => {
+    signals.add(options.signal);
+    if (++attempts === 1) { await new Promise(resolve => setTimeout(resolve, 100)); throw Object.assign(new Error('reset'), { code: 'ECONNRESET' }); }
+    return new Promise(() => {});
+  }, { resolve: async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }] });
+  await assert.rejects(c.call('web_fetch', { url: 'https://example.org/', timeoutMs: 1000 }), errorCode('NETWORK_TIMEOUT'));
+  assert.equal(attempts, 2); assert.equal(signals.size, 1); assert.equal([...signals][0].aborted, true);
+});
+
+test('real proxy authentication errors retain diagnostics, hide credentials and do not retry destination IPs', async () => {
+  const { createServer } = await import('node:http');
+  const proxy = createServer(); let connections = 0;
+  proxy.on('connect', (_request, socket) => { connections++; socket.end('HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n'); });
+  await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve));
+  const port = (proxy.address() as import('node:net').AddressInfo).port;
+  const c = new NetworkClient({ environment: { HTTPS_PROXY: `http://user:private-password@127.0.0.1:${port}` }, resolve: async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }] });
+  try {
+    await assert.rejects(c.call('web_fetch', { url: 'https://example.org/' }), (error: unknown) => {
+      assert.ok(error instanceof BridgeError); assert.equal(error.code, 'NETWORK_PROXY_ERROR');
+      const details = error.details as { phase: string; statusCode: number; retryable: boolean; hint: string };
+      assert.equal(details.phase, 'proxy'); assert.equal(details.statusCode, 407); assert.equal(details.retryable, false);
+      assert.match(details.hint, /authentication/); assert.doesNotMatch(JSON.stringify(error), /private-password/); return true;
+    });
+    assert.equal(connections, 1);
+  } finally { await new Promise<void>(resolve => proxy.close(() => resolve())); }
 });
 
 test('real HTTP proxy pins public destination, closes unfinished redirect bodies, and bounds decompression', async () => {

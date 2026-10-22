@@ -1,5 +1,13 @@
 # 更新日志
 
+## 0.3.0 — 2026-10-22
+
+- `system_status` 在 MCP runtime 直接返回本机当前日期时间、IANA 时区、UTC 偏移和毫秒时间戳，无需联网或 Helper。
+- Agent 指引要求先用本机时钟处理相对日期，限制网络失败后的重复尝试，禁止使用行情、事件或 uptime 推断当前时间。
+- 联网错误保留 DNS、连接、代理、TLS、HTTP 阶段、底层错误码及处理建议；瞬时连接错误在同一总超时内最多尝试三个不同的已验证公网 IP。
+- 系统 DNS 失败或答案含非公网地址时，回退到固定 IP 引导、证书校验的 Cloudflare HTTPS DNS；重新校验所有答案并固定公网 IP，可用 `BRIDGE_DNS_FALLBACK=off` 关闭。
+- `web_fetch` 和 `network_check` 的 HTTP 结果增加本机获取时间与规范化的服务器 Date；继续保持公网地址、TLS 验证及响应大小限制。
+
 ## 0.2.0 — 2026-10-21
 
 首次公开发行 macOS Agent Bridge。

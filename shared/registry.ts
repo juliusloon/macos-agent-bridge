@@ -63,7 +63,7 @@ add('system_list_apps', 'List running regular applications.', 'system');
 add('system_open_app', 'Open an installed app by exact bundle ID; does not execute arbitrary binaries.', 'system', 'write', [], { bundleId: str('App bundle identifier', { pattern: '^[A-Za-z0-9.-]+$' }) }, ['bundleId']);
 add('system_activate_app', 'Activate a running application by bundle ID.', 'system', 'write', [], { bundleId: str('App bundle identifier') }, ['bundleId']);
 add('system_open_url', 'Open an http or https URL in the default browser. Other URL schemes are forbidden.', 'system', 'write', [], { url: str('HTTP(S) URL', { maxLength: 8192 }) }, ['url']);
-add('system_status', 'Inspect OS, uptime, host CPU/memory and battery status without arbitrary shell.', 'system');
+add('system_status', 'Read the current local date/time, UTC time, IANA timezone and UTC offset from the host clock, plus OS, uptime and CPU/memory. Use first for today, tonight, tomorrow or an omitted year. Works offline without the native Helper or permissions.', 'system');
 add('system_run_command', 'Run one fixed read-only utility: disk_usage, battery, uptime. No command string or shell accepted.', 'utility', 'read', [], { command: { enum: ['disk_usage', 'battery', 'uptime'] } }, ['command']);
 add('system_get_selected_text', 'Read focused Accessibility element selected text. Does not use clipboard keystroke fallback.', 'accessibility', 'read', ['accessibility']);
 add('system_list_windows', 'List visible window metadata; titles require Screen Recording permission on some macOS versions.', 'system', 'read', ['screenRecording']);
