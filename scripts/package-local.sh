@@ -37,7 +37,7 @@ cp "$STAGE/node-v${NODE_VERSION}-darwin-${ARCH}/bin/node" "$RELEASE/Runtime/bin/
 cp "$STAGE/node-v${NODE_VERSION}-darwin-${ARCH}/LICENSE" "$RELEASE/docs/licenses/Node-LICENSE.txt"
 cp -R dist/mcp-server dist/shared "$RELEASE/Runtime/dist/"
 node scripts/prepare-runtime.cjs "$RELEASE/Runtime"
-npm ci --prefix "$RELEASE/Runtime" --omit=dev --ignore-scripts --no-audit --no-fund --workspaces=false
+(cd "$RELEASE/Runtime" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund --workspaces=false)
 cp README.md README-EN.md LICENSE CHANGELOG.md CONTRIBUTING.md SECURITY.md "$RELEASE/"
 # Only public documentation; validation logs, generated configs and machine state stay local.
 for document in docs/*.md; do cp "$document" "$RELEASE/docs/"; done
